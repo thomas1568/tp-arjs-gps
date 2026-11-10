@@ -9,16 +9,16 @@ const portrait = testMode === 'portrait';
 const resizeCase = testMode === 'resize';
 const blur = testMode === 'blur';
 const out = await fs.mkdtemp(path.join(os.tmpdir(), 'tp-arjs-browser-'));
-let missingModel = false;
+let missingMedia = false;
 const requests = [], errors = [], browserErrors = [], consoleMessages=[];
-const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.webp':'image/webp','.glb':'model/gltf-binary'};
+const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.webp':'image/webp','.glb':'model/gltf-binary','.mp4':'video/mp4','.gif':'image/gif'};
 const server = http.createServer(async (req,res) => {
   try {
     let url = new URL(req.url, 'http://localhost').pathname;
     if(url.endsWith('/')) url += 'index.html';
     const file = path.resolve(root, '.' + decodeURIComponent(url));
     if(!file.startsWith(root + path.sep)) {res.writeHead(403).end(); return;}
-    if(missingModel && url.endsWith('/personnage.glb')) {requests.push({url,status:404});res.writeHead(404).end();return;}
+    if(missingMedia && url.endsWith('/MMI-anime.mp4')) {requests.push({url,status:404});res.writeHead(404).end();return;}
     const data = await fs.readFile(file);
     requests.push({url,status:200});
     res.writeHead(200, {'Content-Type':mime[path.extname(file)] || 'application/octet-stream','Cache-Control':'no-store'}).end(data);
@@ -92,11 +92,11 @@ try {
   };
   await injectCamera();
   await evaluate(`document.getElementById('demarrer').click()`);
-  await waitFor(`document.getElementById('personnage') || !document.getElementById('reessayer').hidden`,75000);
+  await waitFor(`document.getElementById('animation') || !document.getElementById('reessayer').hidden`,75000);
   await evaluate(`document.getElementById('marqueur')?.addEventListener('markerFound',()=>window.__markerEvents.push('found'));document.getElementById('marqueur')?.addEventListener('markerLost',()=>window.__markerEvents.push('lost'));true`);
   setTimeout(async()=>{try{console.log('DIAGNOSTIC',await evaluate(`JSON.stringify({controller:!!document.querySelector('a-scene')?.systems.arjs?._arSession?.arContext?.arController,anchor:Object.keys(document.querySelector('a-nft')?.components['arjs-anchor']?._arAnchor||{}),context:Object.keys(document.querySelector('a-scene')?.systems.arjs?._arSession?.arContext||{})})`));}catch{}},12000);
-  await waitFor(`document.getElementById('etat-camera').classList.contains('pret') && document.getElementById('etat-nft').classList.contains('pret') && document.getElementById('etat-modele').classList.contains('pret')`,75000);
-  console.log('PASS camera stream, real NFT worker, GLB loaded');
+  await waitFor(`document.getElementById('etat-camera').classList.contains('pret') && document.getElementById('etat-nft').classList.contains('pret') && document.getElementById('etat-animation').classList.contains('pret')`,75000);
+  console.log('PASS camera stream, real NFT worker, animation loaded');
   if(resizeCase){
     await evaluate(`window.__cameraCanvas.width=960;window.__cameraCanvas.height=1280;window.__showMarker=true;true`);
     await waitFor(`document.getElementById('arjs-video').videoWidth===960&&document.getElementById('arjs-video').videoHeight===1280`);
@@ -104,8 +104,8 @@ try {
   }
 
   await waitFor(`document.getElementById('interface').classList.contains('reconnue')`,12000);
-  const geometry=await evaluate(`(()=>{const a=document.getElementById('ancrage').object3D,p=document.getElementById('personnage').object3D;return {anchor:a.position.toArray(),scale:p.scale.toArray(),rotation:p.rotation.toArray(),events:window.__markerEvents,metadata:window.__markerMetadata,video:{width:document.getElementById('arjs-video').videoWidth,height:document.getElementById('arjs-video').videoHeight},smooth:document.getElementById('marqueur').components['arjs-anchor'].data.smoothCount};})()`);
-  check(geometry.anchor[0]>0 && geometry.anchor[1]===0 && geometry.anchor[2]<0,'Model anchor is not centered on NFT image plane');
+  const geometry=await evaluate(`(()=>{const a=document.getElementById('ancrage').object3D,p=document.getElementById('animation').object3D;return {anchor:a.position.toArray(),scale:p.scale.toArray(),rotation:p.rotation.toArray(),events:window.__markerEvents,metadata:window.__markerMetadata,video:{width:document.getElementById('arjs-video').videoWidth,height:document.getElementById('arjs-video').videoHeight},smooth:document.getElementById('marqueur').components['arjs-anchor'].data.smoothCount};})()`);
+  check(geometry.anchor[0]>0 && geometry.anchor[1]===0 && geometry.anchor[2]<0,'Animation anchor is not centered on NFT image plane');
   check(geometry.smooth===10,'NFT smoothing mapping is invalid');
   await evaluate(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))`);
   console.log('MOBILE LAYOUT',await evaluate(`JSON.stringify({innerWidth,innerHeight,body:document.body.getBoundingClientRect().toJSON(),interface:document.getElementById('interface').getBoundingClientRect().toJSON(),status:document.querySelector('.etat').getBoundingClientRect().toJSON(),video:document.getElementById('arjs-video').getBoundingClientRect().toJSON(),canvas:document.querySelector('a-scene').canvas.getBoundingClientRect().toJSON()})`));
@@ -114,9 +114,9 @@ try {
   check(await evaluate(`(()=>{const v=document.getElementById('arjs-video').getBoundingClientRect(),c=document.querySelector('a-scene').canvas.getBoundingClientRect();return ['x','y','width','height'].every(k=>Math.abs(v[k]-c[k])<1)})()`),'Canvas and video do not share the same framing');
   check(await evaluate(`(()=>{const v=document.getElementById('arjs-video').getBoundingClientRect(),vid=document.getElementById('arjs-video'),b=window.__targetBox;const sx=v.width/vid.videoWidth,sy=v.height/vid.videoHeight;const box={left:v.left+b.x*sx,right:v.left+(b.x+b.width)*sx,top:v.top+b.y*sy,bottom:v.top+(b.y+b.height)*sy};return box.left>=0&&box.right<=innerWidth&&box.top>document.querySelector('.etat').getBoundingClientRect().bottom&&box.bottom<document.querySelector('.commandes').getBoundingClientRect().top;})()`),'The target is cropped or hidden by the interface');
   check(await evaluate(`(()=>{const sc=document.querySelector('a-scene');return sc.camera.projectionMatrix.equals(sc.components['align-video-overlay'].projection)})()`),'The renderer overwrites the projection for the camera crop');
-  const modelHeightRatio=await evaluate(`(()=>{const sc=document.querySelector('a-scene'),box=new AFRAME.THREE.Box3().setFromObject(document.getElementById('personnage').object3D),ys=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])ys.push(new AFRAME.THREE.Vector3(x,y,z).project(sc.camera).y);const canvasRect=sc.canvas.getBoundingClientRect(),v=document.getElementById('arjs-video');return (Math.max(...ys)-Math.min(...ys))/2*canvasRect.height/(window.__targetBox.height/v.videoHeight*v.getBoundingClientRect().height);})()`);
-  check(modelHeightRatio>0.45&&modelHeightRatio<0.9,'The model does not keep its size relative to the photo: '+modelHeightRatio);
-  console.log('PASS character proportions relative to image:',modelHeightRatio.toFixed(3));
+  const mediaHeightRatio=await evaluate(`(()=>{const sc=document.querySelector('a-scene'),box=new AFRAME.THREE.Box3().setFromObject(document.getElementById('animation').object3D),ys=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])ys.push(new AFRAME.THREE.Vector3(x,y,z).project(sc.camera).y);const canvasRect=sc.canvas.getBoundingClientRect(),v=document.getElementById('arjs-video');return (Math.max(...ys)-Math.min(...ys))/2*canvasRect.height/(window.__targetBox.height/v.videoHeight*v.getBoundingClientRect().height);})()`);
+  check(mediaHeightRatio>0.85&&mediaHeightRatio<1.2,'The animation does not cover the target with correct proportions: '+mediaHeightRatio);
+  console.log('PASS animation coverage relative to image:',mediaHeightRatio.toFixed(3));
   await evaluate(`document.getElementById('diagnostic').open=true;true`);
   await waitFor(`Number(document.getElementById('analyse-canvas').dataset.frameNumber)>0`);
   check(await evaluate(`(()=>{const p=document.getElementById('analyse-canvas').getContext('2d').getImageData(320,240,1,1).data;return p[1]>p[0]+10&&p[2]>p[0]+10})()`),'The analysed frame does not contain the target in its center after camera resize');
@@ -124,18 +124,39 @@ try {
   await evaluate(`Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw new DOMException('Test clipboard refusal','NotAllowedError')}}});document.getElementById('copier-diagnostic').click();true`);
   await waitFor(`!document.getElementById('diagnostic-texte').hidden`);
   const report=await evaluate(`JSON.parse(document.getElementById('diagnostic-texte').textContent)`);
-  check(report.frames>0 && report.build==='20261110-3' && report.source[0] === (resizeCase || portrait ? 960 : 1280), 'Invalid diagnostic report');
+  check(report.frames>0 && report.build==='20261110-4' && report.source[0] === (resizeCase || portrait ? 960 : 1280), 'Invalid diagnostic report');
   console.log('PASS diagnostic can be copied manually when clipboard is denied');
 
   await screenshot('03-analyse.png');
   await evaluate(`document.getElementById('diagnostic').open=false;true`);
   await delay(250);
+  await waitFor(`!document.getElementById('animation-video').paused&&document.getElementById('animation-video').currentTime>0.1`);
+  check(await evaluate(`(()=>{const m=document.getElementById('animation').getObject3D('mesh').material;return m.map&&m.map.isVideoTexture&&m.map.image===document.getElementById('animation-video')})()`),'The animation is not connected to a live video texture');
+  check(!requests.some(r=>r.url.endsWith('.glb')),'The old 3D model is still requested');
+  const textureVersion=await evaluate(`document.getElementById('animation').getObject3D('mesh').material.map.version`);
+  const hashes=[];
+  for(let i=0;i<6;i++){
+    hashes.push(await evaluate(`(()=>{const v=document.getElementById('animation-video'),c=document.createElement('canvas');c.width=160;c.height=120;const x=c.getContext('2d');x.drawImage(v,0,0,160,120);const p=x.getImageData(0,0,160,120).data;let hash=2166136261;for(let i=0;i<p.length;i+=4){hash=Math.imul(hash^p[i],16777619);hash=Math.imul(hash^p[i+1],16777619);hash=Math.imul(hash^p[i+2],16777619);}return hash>>>0;})()`));
+    await delay(250);
+  }
+  check(new Set(hashes).size>1,'The animation remains on a single frame');
+  check(await evaluate(`document.getElementById('animation').getObject3D('mesh').material.map.version>${textureVersion}`),'The animation texture is not refreshed');
+  await evaluate(`document.getElementById('animation-video').currentTime=document.getElementById('animation-video').duration-0.1;true`);
+  await waitFor(`document.getElementById('animation-video').currentTime<1&&!document.getElementById('animation-video').paused`);
+  console.log('PASS animated frames, GPU texture refresh, silent inline looping, no GLB request');
   await screenshot('02-image-reconnue.png');
-  console.log('PASS target recognized, model centered and visible',JSON.stringify(geometry));
+  console.log('PASS target recognized, animation centered and visible',JSON.stringify(geometry));
   await evaluate('window.__showMarker=false');
   await waitFor(`!document.getElementById('interface').classList.contains('reconnue')`,20000);
-  check(await evaluate(`!document.getElementById('marqueur').object3D.visible`),'Model remains visible without target');
-  console.log('PASS model hidden after losing target');
+  check(await evaluate(`!document.getElementById('marqueur').object3D.visible`),'Animation remains visible without target');
+  console.log('PASS animation hidden after losing target');
+  await waitFor(`document.getElementById('animation-video').paused`);
+  await evaluate(`window.__normalAnimationPlay=document.getElementById('animation-video').play.bind(document.getElementById('animation-video'));document.getElementById('animation-video').play=async()=>{throw new DOMException('Test playback denied','NotAllowedError')};window.__showMarker=true;true`);
+  await waitFor(`document.getElementById('interface').classList.contains('reconnue')&&!document.getElementById('activer-animation').hidden`);
+  await evaluate(`document.getElementById('animation-video').play=window.__normalAnimationPlay;document.getElementById('activer-animation').click();true`);
+  await waitFor(`!document.getElementById('animation-video').paused&&document.getElementById('activer-animation').hidden`);
+  console.log('PASS pause after target loss and manual playback fallback');
+
   await rpc('Page.navigate',{url:origin+'/nft/'});
   await waitFor(`document.getElementById('demarrer') && !document.getElementById('accueil').hidden`);
   await injectCamera('denied');
@@ -143,14 +164,14 @@ try {
   await waitFor(`document.getElementById('interface').classList.contains('erreur')`,60000);
   check(await evaluate(`!document.getElementById('reessayer').hidden`),'Camera error retry is missing');
   console.log('PASS camera refusal shows error and retry');
-  missingModel=true;
+  missingMedia=true;
   await rpc('Page.navigate',{url:origin+'/nft/'});
   await waitFor(`document.getElementById('demarrer') && !document.getElementById('accueil').hidden`);
   await injectCamera();
   await evaluate(`document.getElementById('demarrer').click()`);
   await waitFor(`document.getElementById('interface').classList.contains('erreur')`,60000);
-  check(await evaluate(`document.getElementById('etat-message').textContent.includes('personnage 3D')`),'Missing model does not show correct error');
-  console.log('PASS missing GLB shows specific error');
+  check(await evaluate(`document.getElementById('etat-message').textContent.includes('animation MMI')`),'Missing animation does not show correct error');
+  console.log('PASS missing MP4 shows specific error');
   await rpc('Page.navigate',{url:origin+'/nft/cible.html'});
   await waitFor(`document.querySelector('img')?.naturalWidth === 1280`);
   check(await evaluate(`document.querySelector('a[download]') !== null`),'Target download is missing');

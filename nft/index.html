@@ -4,17 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#10231e">
-  <meta name="description" content="Scanne l’image du projet pour faire apparaître un personnage en réalité augmentée.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="Scanne l’image du projet pour lancer l’animation MMI en réalité augmentée.">
   <title>Scanner NFT · TP AR.js</title>
-  <link rel="stylesheet" href="./scanner.css?v=20261110-3">
-  <script src="./scanner.js?v=20261110-3" defer></script>
+  <link rel="stylesheet" href="./scanner.css?v=20261110-4">
+  <script src="./scanner.js?v=20261110-4" defer></script>
 </head>
 <body>
   <main id="accueil" class="accueil">
     <section class="carte" aria-labelledby="titre">
       <p class="surtitre">TP MMI · RÉALITÉ AUGMENTÉE</p>
-      <h1 id="titre">Une image.<br>Un personnage en 3D.</h1>
-      <p class="introduction">Dirige la caméra vers cette image pour faire apparaître ton modèle 3D.</p>
+      <h1 id="titre">Une image.<br>Ton animation MMI.</h1>
+      <p class="introduction">Scanne cette photo pour lancer ton GIF animé en réalité augmentée.</p>
       <a class="apercu" href="./cible.html" target="_blank" rel="noopener" aria-label="Ouvrir l’image à scanner dans un nouvel onglet">
         <img src="./assets/IMG_9765.webp" width="1280" height="960" alt="Image cible : un grand cercle turquoise sur un mur clair, entouré de triangles colorés.">
         <span>Voir l’image à scanner ↗</span>
@@ -26,7 +27,7 @@
       </ol>
       <button id="demarrer" class="bouton principal" type="button">Démarrer le scanner</button>
       <p id="message-accueil" class="aide" role="status">Sur téléphone, ouvre ce site dans Safari ou Chrome.</p>
-      <p class="credits">Modèle <a href="https://sketchfab.com/3d-models/mens-a400147bb3cb4bd0b36b8ed245d0b5b5" target="_blank" rel="noopener">MENS · kwong.x</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
+      <p class="credits"><a href="../assets/MMI-anime.gif" target="_blank" rel="noopener">Voir le GIF original ↗</a></p>
     </section>
   </main>
 
@@ -38,7 +39,7 @@
       <ul class="chargements" aria-label="État du chargement">
         <li id="etat-camera">Caméra : en attente</li>
         <li id="etat-nft">Image : en attente</li>
-        <li id="etat-modele">3D : en attente</li>
+        <li id="etat-animation">Animation : en attente</li>
       </ul>
     </div>
     <div id="viseur" class="viseur" aria-hidden="true"></div>
@@ -52,11 +53,15 @@
         <pre id="diagnostic-texte" tabindex="0" hidden></pre>
       </details>
       <button id="reprendre" class="bouton principal" type="button" hidden>Activer la vidéo</button>
+      <button id="activer-animation" class="bouton principal" type="button" hidden>Activer l’animation</button>
       <button id="reessayer" class="bouton principal" type="button" hidden>Réessayer</button>
       <a class="bouton secondaire" href="./cible.html" target="_blank" rel="noopener">Image à scanner ↗</a>
       <button id="retour" class="bouton secondaire" type="button">Quitter</button>
     </div>
   </section>
+
+  <video id="animation-video" class="source-animation" src="../assets/MMI-anime.mp4"
+    preload="auto" loop muted playsinline webkit-playsinline aria-hidden="true" tabindex="-1"></video>
 
   <!-- La scène n’est insérée qu’après un clic et le chargement des bibliothèques. -->
   <template id="scene-template">
@@ -73,11 +78,9 @@
         smooth="true" smooth-count="10" smooth-tolerance="0.01" smooth-threshold="5">
         <!-- AR.js utilise le plan X/Z de l’image ; Y est sa normale. -->
         <a-entity id="ancrage" rotation="-90 0 0">
-          <a-entity id="personnage" gltf-model="url(../assets/personnage.glb)"></a-entity>
+          <a-video id="animation" src="#animation-video" width="1" height="1" material="shader: flat; side: double"></a-video>
         </a-entity>
       </a-nft>
-      <a-entity light="type: ambient; intensity: 1"></a-entity>
-      <a-entity light="type: directional; intensity: 0.8" position="0 300 300"></a-entity>
       <a-entity camera="near: 0.1; far: 10000" look-controls="enabled: false" wasd-controls="enabled: false"></a-entity>
     </a-scene>
   </template>

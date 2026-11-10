@@ -6,12 +6,12 @@
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-  <title>TP MMI - Image Tracking NFT</title>
+  <title>TP MMI - Scan NFT</title>
 
-  <!-- A-Frame -->
+  <!-- Bibliothèque A-Frame -->
   <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
 
-  <!-- AR.js NFT -->
+  <!-- Bibliothèque AR.js NFT -->
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar-nft.js"></script>
 
   <style>
@@ -20,17 +20,16 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #111;
       font-family: Arial, sans-serif;
     }
 
     #status {
       position: fixed;
-      top: 65px;
-      left: 12px;
-      right: 12px;
+      top: 60px;
+      left: 10px;
+      right: 10px;
       z-index: 9999;
-      padding: 14px;
+      padding: 15px;
       border-radius: 10px;
       background: rgba(0, 0, 0, 0.85);
       color: white;
@@ -47,10 +46,13 @@
 <body>
 
   <div id="status">
-    <strong>TP MMI - Scan NFT</strong>
-    <div id="message">Initialisation...</div>
+    <strong>TP MMI - Image Tracking NFT</strong>
+    <div id="message">
+      Initialisation de la caméra...
+    </div>
   </div>
 
+  <!-- Scène AR -->
   <a-scene
     embedded
     vr-mode-ui="enabled: false"
@@ -58,17 +60,17 @@
     renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
     arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false">
 
-    <!-- Image reconnue -->
+    <!-- Marqueur NFT -->
     <a-nft
       id="marqueur"
       type="nft"
-      url="./assets/scan"
+      url="./assets/IMG_9765"
       smooth="true"
       smoothCount="10"
       smoothTolerance="0.01"
       smoothThreshold="5">
 
-      <!-- Modèle 3D -->
+      <!-- Personnage 3D -->
       <a-entity
         id="personnage"
         gltf-model="url(../assets/personnage.glb)"
@@ -79,59 +81,55 @@
 
     </a-nft>
 
-    <!-- Caméra AR -->
+    <!-- Caméra -->
     <a-entity camera></a-entity>
 
   </a-scene>
 
   <script>
     const message = document.getElementById("message");
-    const marker = document.getElementById("marqueur");
-    const model = document.getElementById("personnage");
+    const marqueur = document.getElementById("marqueur");
+    const personnage = document.getElementById("personnage");
 
-    function status(text) {
-      message.textContent = text;
-      console.log("[NFT]", text);
+    function afficher(texte) {
+      message.textContent = texte;
+      console.log("[NFT]", texte);
     }
 
-    // Scène prête
+    // Initialisation de la scène
     document.querySelector("a-scene")
       .addEventListener("loaded", () => {
-        status("Scène chargée. Initialisation NFT...");
+        afficher("Scène chargée. Initialisation NFT...");
       });
 
-    // Fichiers NFT chargés
+    // NFT chargé
     window.addEventListener("arjs-nft-loaded", () => {
-      status("NFT prêt. Pointe la caméra vers l'image.");
+      afficher("NFT prêt. Scanne l'image !");
     });
 
-    // Marqueur reconnu
-    marker.addEventListener("markerFound", () => {
-      status("Image reconnue ! Affichage du personnage.");
+    // Image reconnue
+    marqueur.addEventListener("markerFound", () => {
+      afficher("Image reconnue ! Personnage affiché.");
     });
 
-    // Marqueur perdu
-    marker.addEventListener("markerLost", () => {
-      status("Image perdue. Recadre le visuel.");
+    // Image perdue
+    marqueur.addEventListener("markerLost", () => {
+      afficher("Image perdue. Recadre l'image.");
     });
 
-    // Modèle chargé
-    model.addEventListener("model-loaded", () => {
-      console.log("Modèle GLB chargé.");
+    // Modèle 3D chargé
+    personnage.addEventListener("model-loaded", () => {
+      console.log("Personnage GLB chargé.");
     });
 
-    model.addEventListener("model-error", (event) => {
-      status("Erreur de chargement du modèle GLB.");
+    personnage.addEventListener("model-error", (event) => {
+      afficher("Erreur de chargement du personnage GLB.");
       console.error(event.detail);
     });
 
-    // Erreur JavaScript
+    // Diagnostic JavaScript
     window.addEventListener("error", (event) => {
       console.error(event);
-
-      if (event.message !== "Script error.") {
-        status("Erreur : " + event.message);
-      }
     });
   </script>
 

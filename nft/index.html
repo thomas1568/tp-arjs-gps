@@ -1,266 +1,78 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1,
-                 maximum-scale=1, user-scalable=no">
-
-  <title>TP MMI - Scanner NFT</title>
-
-  <!-- Versions compatibles -->
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar-nft.js"></script>
-
-  <style>
-    html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-      font-family: Arial, sans-serif;
-    }
-
-    /* Caméra visible en arrière-plan */
-    #arjs-video {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
-      z-index: 1 !important;
-    }
-
-    /* Scène 3D transparente devant la caméra */
-    a-scene {
-      position: fixed !important;
-      top: 0;
-      left: 0;
-      width: 100% !important;
-      height: 100% !important;
-      background: transparent !important;
-      z-index: 2 !important;
-    }
-
-    a-scene canvas {
-      background: transparent !important;
-    }
-
-    #interface {
-      position: fixed;
-      top: 20px;
-      left: 10px;
-      right: 10px;
-      z-index: 9999;
-      padding: 14px;
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.78);
-      color: white;
-      text-align: center;
-      font-size: 13px;
-    }
-
-    #etat {
-      color: #7dd3fc;
-      margin-top: 8px;
-    }
-
-    #diagnostic {
-      margin-top: 8px;
-      line-height: 1.6;
-    }
-
-    button {
-      margin-top: 10px;
-      padding: 10px;
-      border: 0;
-      border-radius: 7px;
-      background: #10b981;
-      color: white;
-      font-size: 14px;
-    }
-
-    .a-enter-vr,
-    .a-enter-ar {
-      display: none !important;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#10231e">
+  <meta name="description" content="Scanne l’image du projet pour faire apparaître un personnage en réalité augmentée.">
+  <title>Scanner NFT · TP AR.js</title>
+  <link rel="stylesheet" href="./scanner.css">
+  <script src="./scanner.js" defer></script>
 </head>
-
 <body>
+  <main id="accueil" class="accueil">
+    <section class="carte" aria-labelledby="titre">
+      <p class="surtitre">TP MMI · RÉALITÉ AUGMENTÉE</p>
+      <h1 id="titre">Une image.<br>Un personnage en 3D.</h1>
+      <p class="introduction">Dirige la caméra vers cette image pour faire apparaître ton modèle 3D.</p>
+      <a class="apercu" href="./cible.html" target="_blank" rel="noopener" aria-label="Ouvrir l’image à scanner dans un nouvel onglet">
+        <img src="./assets/IMG_9765.webp" width="1280" height="960" alt="Image cible : un grand cercle turquoise sur un mur clair, entouré de triangles colorés.">
+        <span>Voir l’image à scanner ↗</span>
+      </a>
+      <ol class="etapes">
+        <li>Affiche cette image sur un <strong>autre écran</strong> ou imprime-la.</li>
+        <li>Démarre le scanner et autorise la caméra.</li>
+        <li>Cadre l’image entière, avec une bonne lumière.</li>
+      </ol>
+      <button id="demarrer" class="bouton principal" type="button">Démarrer le scanner</button>
+      <p id="message-accueil" class="aide" role="status">Sur téléphone, ouvre ce site dans Safari ou Chrome.</p>
+      <p class="credits">Modèle <a href="https://sketchfab.com/3d-models/mens-a400147bb3cb4bd0b36b8ed245d0b5b5" target="_blank" rel="noopener">MENS · kwong.x</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
+    </section>
+  </main>
 
-  <div id="interface">
-    <strong>TP MMI - Scanner NFT</strong>
-
-    <div id="etat">
-      Initialisation de la caméra AR.js...
+  <section id="interface" class="interface" aria-label="Scanner d’image" hidden>
+    <div class="panneau etat" role="status" aria-live="polite" aria-atomic="true">
+      <p class="surtitre">SCANNER D’IMAGE</p>
+      <h2 id="etat-titre">Préparation du scanner…</h2>
+      <p id="etat-message">Autorise l’accès à la caméra lorsque ton navigateur le demande.</p>
+      <ul class="chargements" aria-label="État du chargement">
+        <li id="etat-camera">Caméra : en attente</li>
+        <li id="etat-nft">Image : en attente</li>
+        <li id="etat-modele">3D : en attente</li>
+      </ul>
     </div>
-
-    <div id="diagnostic">
-      Recherche du flux vidéo...
+    <div id="viseur" class="viseur" aria-hidden="true"></div>
+    <div class="commandes panneau">
+      <button id="reprendre" class="bouton principal" type="button" hidden>Activer la vidéo</button>
+      <button id="reessayer" class="bouton principal" type="button" hidden>Réessayer</button>
+      <a class="bouton secondaire" href="./cible.html" target="_blank" rel="noopener">Image à scanner ↗</a>
+      <button id="retour" class="bouton secondaire" type="button">Quitter</button>
     </div>
+  </section>
 
-    <button id="activerVideo">
-      Activer l'affichage vidéo
-    </button>
-  </div>
-
-  <a-scene
-    embedded
-    vr-mode-ui="enabled: false"
-    renderer="alpha: true; antialias: true; precision: medium;"
-    arjs="trackingMethod: best;
-          sourceType: webcam;
-          debugUIEnabled: false;">
-
-    <a-nft
-      id="marqueur"
-      type="nft"
-      url="./assets/IMG_9765"
-      smooth="true"
-      smoothCount="10"
-      smoothTolerance="0.01"
-      smoothThreshold="5">
-
-      <a-entity
-        id="personnage"
-        gltf-model="url(../assets/personnage.glb)"
-        position="0 0 0"
-        rotation="-90 0 0"
-        scale="1 1 1">
-      </a-entity>
-
-    </a-nft>
-
-    <a-entity camera></a-entity>
-
-  </a-scene>
-
-  <script>
-    const etat = document.getElementById("etat");
-    const diagnostic = document.getElementById("diagnostic");
-    const scene = document.querySelector("a-scene");
-    const marqueur = document.getElementById("marqueur");
-    const personnage = document.getElementById("personnage");
-
-    let nftPret = false;
-    let modelePret = false;
-
-    function trouverVideo() {
-      return document.getElementById("arjs-video");
-    }
-
-    function verifierCamera() {
-      const video = trouverVideo();
-
-      if (video) {
-        video.setAttribute("playsinline", "");
-        video.setAttribute("webkit-playsinline", "");
-        video.muted = true;
-      }
-
-      const videoPresente = !!video;
-      const fluxRecu = video && video.videoWidth > 0;
-
-      diagnostic.textContent =
-        "Vidéo AR.js : " +
-        (videoPresente ? "présente" : "absente") +
-        "\nFlux caméra : " +
-        (fluxRecu ? "reçu" : "non reçu") +
-        "\nNFT : " +
-        (nftPret ? "prêt" : "en attente") +
-        "\nModèle 3D : " +
-        (modelePret ? "chargé" : "en attente");
-
-      diagnostic.style.whiteSpace = "pre-line";
-    }
-
-    scene.addEventListener("renderstart", () => {
-      if (scene.renderer) {
-        scene.renderer.setClearColor(0x000000, 0);
-      }
-    });
-
-    window.addEventListener("arjs-video-loaded", () => {
-      etat.textContent = "Vidéo AR.js créée.";
-      verifierCamera();
-    });
-
-    window.addEventListener("camera-init", () => {
-      etat.textContent = "Caméra AR.js initialisée.";
-      verifierCamera();
-    });
-
-    window.addEventListener("camera-error", (event) => {
-      etat.textContent = "Erreur : AR.js ne peut pas ouvrir la caméra.";
-      console.error(event);
-    });
-
-    window.addEventListener("arjs-nft-loaded", () => {
-      nftPret = true;
-      etat.textContent =
-        "NFT prêt ! Dirige la caméra vers IMG_9765.";
-      verifierCamera();
-    });
-
-    marqueur.addEventListener("markerFound", () => {
-      etat.textContent = "Image reconnue !";
-    });
-
-    marqueur.addEventListener("markerLost", () => {
-      etat.textContent = "Image perdue. Recadre la photo.";
-    });
-
-    personnage.addEventListener("model-loaded", () => {
-      modelePret = true;
-      verifierCamera();
-    });
-
-    personnage.addEventListener("model-error", () => {
-      etat.textContent = "Erreur de chargement du modèle 3D.";
-    });
-
-    document.getElementById("activerVideo")
-      .addEventListener("click", async () => {
-
-        const video = trouverVideo();
-
-        if (!video) {
-          etat.textContent =
-            "AR.js n'a pas créé la vidéo de la caméra.";
-          return;
-        }
-
-        try {
-          video.muted = true;
-          video.setAttribute("playsinline", "");
-          await video.play();
-
-          etat.textContent = "Lecture vidéo activée.";
-        } catch (erreur) {
-          etat.textContent =
-            "Erreur vidéo : " + erreur.message;
-        }
-
-        verifierCamera();
-      });
-
-    window.addEventListener("error", (event) => {
-      console.error("Erreur JavaScript :", event.message);
-
-      if (event.message &&
-          event.message !== "Script error.") {
-        etat.textContent =
-          "Erreur JS : " + event.message;
-      }
-    });
-
-    setInterval(verifierCamera, 1500);
-    verifierCamera();
-  </script>
-
+  <!-- La scène n’est insérée qu’après un clic et le chargement des bibliothèques. -->
+  <template id="scene-template">
+    <a-scene
+      id="scene"
+      align-video-overlay
+      embedded
+      vr-mode-ui="enabled: false"
+      loading-screen="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+      renderer="alpha: true; antialias: true; precision: medium; logarithmicDepthBuffer: true"
+      arjs="trackingMethod: best; sourceType: webcam; sourceWidth: 1280; sourceHeight: 960; debugUIEnabled: false">
+      <a-nft id="marqueur" type="nft" url="./assets/IMG_9765"
+        smooth="true" smooth-count="10" smooth-tolerance="0.01" smooth-threshold="5">
+        <!-- AR.js utilise le plan X/Z de l’image ; Y est sa normale. -->
+        <a-entity id="ancrage" rotation="-90 0 0">
+          <a-entity id="personnage" gltf-model="url(../assets/personnage.glb)"></a-entity>
+        </a-entity>
+      </a-nft>
+      <a-entity light="type: ambient; intensity: 1"></a-entity>
+      <a-entity light="type: directional; intensity: 0.8" position="0 300 300"></a-entity>
+      <a-entity camera="near: 0.1; far: 10000" look-controls="enabled: false" wasd-controls="enabled: false"></a-entity>
+    </a-scene>
+  </template>
+  <noscript><p class="sans-script">Active JavaScript dans ton navigateur pour utiliser le scanner.</p></noscript>
 </body>
 </html>

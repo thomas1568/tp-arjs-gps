@@ -4,19 +4,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
-        content="width=device-width, initial-scale=1">
-  <title>Test de publication</title>
+        content="width=device-width, initial-scale=1.0">
+
+  <title>TP AR.js - Test A-Frame</title>
+
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
   <style>
     body {
-      background: #17324d;
-      color: white;
+      margin: 0;
       font-family: Arial, sans-serif;
-      padding: 30px;
+    }
+
+    #status {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      border-radius: 10px;
+      z-index: 9999;
     }
   </style>
 </head>
+
 <body>
-  <h1>TEST AR.JS VERSION 5</h1>
-  <p>Le nouveau fichier HTML est bien publié.</p>
+
+  <div id="status">
+    Test A-Frame : initialisation...
+  </div>
+
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false">
+
+    <a-box
+      position="0 1 -4"
+      rotation="0 45 0"
+      color="#4CC3D9">
+    </a-box>
+
+    <a-sky color="#ECECEC"></a-sky>
+
+  </a-scene>
+
+  <script>
+    const status = document.getElementById("status");
+
+    if (typeof AFRAME !== "undefined") {
+      status.textContent =
+        "A-Frame chargé ! Attente de la scène...";
+    } else {
+      status.textContent =
+        "Erreur : A-Frame non chargé.";
+    }
+
+    document.querySelector("a-scene")
+      .addEventListener("loaded", function () {
+        status.textContent =
+          "SUCCÈS : A-Frame fonctionne sur cet iPhone !";
+      });
+  </script>
+
 </body>
 </html>

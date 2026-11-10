@@ -3,19 +3,40 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
 
-  <title>TP MMI - Scan NFT</title>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0,
+                 maximum-scale=1.0, user-scalable=no">
+
+  <title>TP MMI - Réalité augmentée NFT</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+
+  <!-- AR.js avec reconnaissance d'image NFT -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar-nft.js"></script>
 
   <style>
     html, body {
       margin: 0;
+      padding: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #101827;
+      background: #000;
       font-family: Arial, sans-serif;
+    }
+
+    /* Le flux caméra est placé derrière la scène 3D */
+    #arjs-video,
+    video {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      object-fit: cover !important;
+      z-index: -1 !important;
     }
 
     a-scene {
@@ -23,68 +44,67 @@
       inset: 0;
       width: 100% !important;
       height: 100% !important;
+      z-index: 1;
     }
 
     #interface {
       position: fixed;
-      top: 65px;
-      left: 12px;
-      right: 12px;
-      z-index: 99999;
-      background: rgba(0,0,0,.85);
+      top: 15px;
+      left: 10px;
+      right: 10px;
+      z-index: 9999;
+      padding: 14px;
+      background: rgba(0, 0, 0, 0.75);
       color: white;
       border-radius: 12px;
-      padding: 15px;
+      text-align: center;
       font-size: 14px;
-      line-height: 1.5;
+      pointer-events: none;
     }
 
-    #titre {
-      color: #55d9ff;
-      font-weight: bold;
-    }
-
-    #message {
+    #etat {
       margin-top: 8px;
-      white-space: pre-wrap;
+      color: #7dd3fc;
+    }
+
+    #details {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #ddd;
       overflow-wrap: anywhere;
     }
 
-    button {
-      margin-top: 12px;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background: #19a86b;
-      color: white;
-      font-size: 15px;
-      font-weight: bold;
+    .a-enter-vr,
+    .a-enter-ar {
+      display: none !important;
     }
   </style>
-
-  <script
-    src="https://aframe.io/releases/1.0.4/aframe.min.js">
-  </script>
-
-  <script
-    src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar-nft.js">
-  </script>
 </head>
 
 <body>
 
   <div id="interface">
-    <div id="titre">TP MMI - Scan NFT</div>
-    <div id="message">Vérification des bibliothèques...</div>
-    <button id="demarrer">Autoriser la caméra</button>
+    <strong>TP MMI - Scan NFT</strong>
+    <div id="etat">Initialisation de la réalité augmentée...</div>
+    <div id="details">Chargement...</div>
   </div>
 
   <a-scene
+    embedded
     vr-mode-ui="enabled: false"
-    loading-screen="enabled: false"
-    renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
-    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false">
+    renderer="logarithmicDepthBuffer: true; precision: medium;"
+    arjs="trackingMethod: best;
+          sourceType: webcam;
+          debugUIEnabled: false;">
 
+    <a-assets timeout="30000">
+      <a-asset-item
+        id="modele3d"
+        src="../assets/personnage.glb">
+      </a-asset-item>
+    </a-assets>
+
+    <!-- Image NFT à reconnaître -->
     <a-nft
       id="marqueur"
       type="nft"
@@ -94,153 +114,115 @@
       smoothTolerance="0.01"
       smoothThreshold="5">
 
+      <!-- Personnage 3D -->
       <a-entity
         id="personnage"
-        gltf-model="url(../assets/personnage.glb)"
-        scale="1 1 1"
+        gltf-model="#modele3d"
         position="0 0 0"
-        rotation="-90 0 0">
+        rotation="-90 0 0"
+        scale="1 1 1">
       </a-entity>
 
     </a-nft>
 
+    <!-- Caméra virtuelle AR.js -->
     <a-entity camera></a-entity>
 
   </a-scene>
 
   <script>
-    const message = document.getElementById("message");
-    const bouton = document.getElementById("demarrer");
-    const scene = document.querySelector("a-scene");
+    const etat = document.getElementById("etat");
+    const details = document.getElementById("details");
     const marqueur = document.getElementById("marqueur");
     const personnage = document.getElementById("personnage");
+    const scene = document.querySelector("a-scene");
 
-    let cameraOK = false;
-    let nftOK = false;
-    let modeleOK = false;
+    let nftPret = false;
+    let marqueurVisible = false;
+    let modeleCharge = false;
 
-    function afficher(texte) {
-      message.textContent = texte;
-      console.log("[TP NFT]", texte);
+    function afficherEtat(message) {
+      etat.textContent = message;
     }
 
-    // Vérifier les bibliothèques
-    if (typeof AFRAME === "undefined") {
-      afficher("ERREUR : A-Frame non chargé.");
-    } else if (!AFRAME.components["nft"]) {
-      afficher(
-        "ERREUR : composant NFT absent. Vérifier AR.js."
+    function afficherDetails() {
+      const video = document.querySelector(
+        "#arjs-video, video"
       );
-    } else {
-      afficher("Bibliothèques détectées. Attente caméra...");
+
+      let camera = "introuvable";
+
+      if (video) {
+        camera = video.readyState >= 2
+          ? "active"
+          : "en cours de chargement";
+      }
+
+      details.textContent =
+        "Caméra : " + camera +
+        " | NFT : " + (nftPret ? "prêt" : "en attente") +
+        " | Modèle : " + (modeleCharge ? "chargé" : "en attente");
     }
 
-    // Demander l'accès caméra
-    bouton.addEventListener("click", async () => {
-      if (!navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia) {
-        afficher("Caméra indisponible dans ce navigateur.");
-        return;
+    scene.addEventListener("loaded", function () {
+      afficherEtat("Scène 3D chargée. Initialisation caméra...");
+      afficherDetails();
+    });
+
+    scene.addEventListener("camera-init", function () {
+      afficherEtat("Caméra initialisée. Chargement NFT...");
+      afficherDetails();
+    });
+
+    scene.addEventListener("camera-error", function (event) {
+      afficherEtat("Erreur d'initialisation de la caméra");
+      details.textContent = JSON.stringify(event.detail || {});
+    });
+
+    marqueur.addEventListener("arjs-nft-loaded", function () {
+      nftPret = true;
+      afficherEtat("NFT prêt ! Dirige la caméra vers IMG_9765.");
+      afficherDetails();
+    });
+
+    marqueur.addEventListener("markerFound", function () {
+      marqueurVisible = true;
+      afficherEtat("Image reconnue ! Personnage détecté.");
+      afficherDetails();
+    });
+
+    marqueur.addEventListener("markerLost", function () {
+      marqueurVisible = false;
+      afficherEtat("Image perdue. Repositionne la caméra.");
+      afficherDetails();
+    });
+
+    personnage.addEventListener("model-loaded", function () {
+      modeleCharge = true;
+      afficherDetails();
+    });
+
+    personnage.addEventListener("model-error", function () {
+      afficherEtat("Erreur : impossible de charger le modèle 3D.");
+    });
+
+    window.addEventListener("error", function (event) {
+      afficherEtat("Erreur JavaScript");
+      details.textContent = event.message || "Erreur inconnue";
+    });
+
+    window.addEventListener("unhandledrejection", function (event) {
+      afficherEtat("Erreur de chargement");
+      details.textContent = String(event.reason);
+    });
+
+    setInterval(function () {
+      afficherDetails();
+
+      if (marqueurVisible) {
+        afficherEtat("Image reconnue ! Personnage affiché.");
       }
-
-      try {
-        afficher("Demande d'autorisation caméra...");
-
-        const flux = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: "environment" }
-          }
-        });
-
-        cameraOK = true;
-        afficher(
-          "Caméra autorisée. Initialisation AR.js..."
-        );
-
-        // Libérer la caméra pour AR.js
-        flux.getTracks().forEach(track => track.stop());
-
-        bouton.style.display = "none";
-
-      } catch (erreur) {
-        afficher(
-          "Erreur caméra : " +
-          erreur.name + " - " + erreur.message
-        );
-      }
-    });
-
-    scene.addEventListener("loaded", () => {
-      console.log("Scène A-Frame chargée.");
-    });
-
-    // Événements AR.js
-    window.addEventListener("arjs-video-loaded", () => {
-      cameraOK = true;
-      afficher("Caméra AR.js active. Chargement NFT...");
-    });
-
-    window.addEventListener("arjs-video-error", () => {
-      afficher("AR.js n'arrive pas à ouvrir la caméra.");
-    });
-
-    window.addEventListener("arjs-nft-loaded", () => {
-      nftOK = true;
-      afficher("NFT prêt ! Scanne IMG_9765.");
-    });
-
-    // Reconnaissance
-    marqueur.addEventListener("markerFound", () => {
-      afficher(
-        modeleOK
-          ? "Image reconnue ! Modèle chargé."
-          : "Image reconnue. Attente du modèle..."
-      );
-    });
-
-    marqueur.addEventListener("markerLost", () => {
-      afficher("Image perdue. Recadre la photo.");
-    });
-
-    // Modèle GLB
-    personnage.addEventListener("model-loaded", () => {
-      modeleOK = true;
-      console.log("Modèle GLB chargé.");
-
-      if (nftOK) {
-        afficher("NFT prêt. Modèle chargé. Scanne la photo.");
-      }
-    });
-
-    personnage.addEventListener("model-error", (event) => {
-      afficher("Erreur : personnage.glb non chargé.");
-      console.error(event.detail);
-    });
-
-    // Diagnostic
-    window.addEventListener("error", event => {
-      console.error("Erreur JS :", event);
-
-      if (event.message !== "Script error.") {
-        afficher("Erreur JavaScript : " + event.message);
-      }
-    });
-
-    window.addEventListener("unhandledrejection", event => {
-      console.error("Erreur asynchrone :", event.reason);
-    });
-
-    setTimeout(() => {
-      if (!nftOK) {
-        afficher(
-          "NFT pas encore prêt.\n" +
-          "Caméra autorisée : " + cameraOK + "\n" +
-          "Modèle chargé : " + modeleOK + "\n" +
-          "Vérifie les fichiers NFT et les scripts."
-        );
-      }
-    }, 20000);
+    }, 1500);
   </script>
 
 </body>

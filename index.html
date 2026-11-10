@@ -8,38 +8,147 @@
 
   <title>TP AR.js - GPS Corte</title>
 
-  <!-- A-Frame : moteur de scène 3D -->
+  <!-- Bibliothèque A-Frame -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 
-  <!-- AR.js : géolocalisation -->
-  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/three.js/build/ar-threex-location-only.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
+  <!-- AR.js avec géolocalisation -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #111;
+    }
+
+    #status {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      padding: 14px;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      border-radius: 10px;
+      z-index: 9999;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #status strong {
+      color: #62d7ff;
+    }
+  </style>
 </head>
 
-<body style="margin: 0; overflow: hidden;">
+<body>
 
+  <div id="status">
+    <strong>TP AR.js - GPS Corte</strong>
+    <div id="message">Initialisation...</div>
+  </div>
+
+  <!-- Scène de réalité augmentée -->
   <a-scene
+    embedded
     vr-mode-ui="enabled: false"
-    arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false"
-    renderer="antialias: true; alpha: true">
+    arjs="sourceType: webcam; debugUIEnabled: false"
+    renderer="antialias: true; alpha: true"
+    loading-screen="enabled: false">
 
-    <!-- Objet 3D positionné à Corte -->
+    <!-- Chargement du modèle -->
+    <a-assets timeout="30000">
+      <a-asset-item
+        id="modele"
+        src="./assets/personnage.glb">
+      </a-asset-item>
+    </a-assets>
+
+    <!-- Objet 3D géolocalisé -->
     <a-entity
+      id="personnage"
       gps-new-entity-place="latitude: 42.306699560260455; longitude: 9.148512279247452"
-      gltf-model="url(assets/personnage.glb)"
+      gltf-model="#modele"
       scale="1 1 1"
       position="0 0 0"
       rotation="0 0 0">
     </a-entity>
 
-    <!-- Caméra du smartphone avec GPS -->
+    <!-- Caméra GPS -->
     <a-camera
       gps-new-camera="gpsMinDistance: 5"
-      look-controls
+      look-controls="enabled: false"
       wasd-controls="enabled: false">
     </a-camera>
 
   </a-scene>
+
+  <script>
+    const message = document.getElementById("message");
+    const scene = document.querySelector("a-scene");
+    const model = document.getElementById("personnage");
+
+    function updateStatus(text) {
+      message.textContent = text;
+      console.log("[AR.js]", text);
+    }
+
+    scene.addEventListener("loaded", () => {
+      updateStatus("Scène chargée. Attente du GPS...");
+    });
+
+    scene.addEventListener("arjs-video-loaded", () => {
+      updateStatus("Caméra active. Attente GPS...");
+    });
+
+    scene.addEventListener("arjs-video-error", () => {
+      updateStatus("Erreur caméra : autorisation refusée ?");
+    });
+
+    model.addEventListener("model-loaded", () => {
+      updateStatus("Modèle 3D chargé. Attente GPS...");
+    });
+
+    model.addEventListener("model-error", (event) => {
+      updateStatus("Erreur de chargement du modèle GLB.");
+      console.error(event.detail);
+    });
+
+    window.addEventListener(
+      "gps-camera-update-position",
+      (event) => {
+        const coords = event.detail.position;
+
+        updateStatus(
+          "GPS actif : " +
+          coords.latitude.toFixed(6) + ", " +
+          coords.longitude.toFixed(6)
+        );
+      }
+    );
+
+    window.addEventListener("gps-camera-error", (event) => {
+      updateStatus("Erreur GPS : " +
+        JSON.stringify(event.detail));
+    });
+
+    window.addEventListener("error", (event) => {
+      updateStatus("Erreur JavaScript : " + event.message);
+    });
+
+    setTimeout(() => {
+      if (message.textContent === "Initialisation...") {
+        updateStatus(
+          "Chargement trop long : vérifier scripts, caméra et console."
+        );
+      }
+    }, 15000);
+  </script>
 
 </body>
 </html>

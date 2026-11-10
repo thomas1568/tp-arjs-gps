@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="refresh" content="0; url=./nft/">
   <title>Scanner une image en réalité augmentée</title>
-  <script>window.location.replace(new URL('./nft/', window.location.href).href);</script>
+  <script>const destination = new URL('./nft/', location.href); destination.search = location.search; destination.hash = location.hash; location.replace(destination.href);</script>
 </head>
 <body>
   <p><a href="./nft/">Ouvrir le scanner d’image et afficher l’animation MMI</a></p>

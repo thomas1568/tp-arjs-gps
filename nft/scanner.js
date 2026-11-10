@@ -11,10 +11,30 @@
   };
   let scene, animationPlane, anchor, video, watchdog, searchTimer, lostPlaybackTimer;
   const animationVideo = element("animation-video");
-  const diagnostics = { build: "20261110-4", frames: 0, lastFrameAt: 0, source: null,
+  const targetChoice = element("choix-cible");
+  let targetKey = new URLSearchParams(location.search).get("cible") === "photo" ? "photo" : "mmi";
+  let selectedTarget = window.NFT_TARGETS[targetKey];
+  const diagnostics = { target: targetKey, build: "20261110-5", frames: 0, lastFrameAt: 0, source: null,
     crop: null, mean: null, contrast: null, firstVideoSize: null, resizes: 0, error: "" };
-  // Métadonnées du fichier IMG_9765.iset, mises à jour par AR.js au chargement.
+  // Dimensions physiques initiales, remplacées par les métadonnées de la cible.
   let markerInfo = { width: 1280, height: 960, dpi: 106 };
+
+  function configureTarget(key) {
+    targetKey = key === "photo" ? "photo" : "mmi";
+    selectedTarget = window.NFT_TARGETS[targetKey];
+    diagnostics.target = targetKey;
+    targetChoice.value = targetKey;
+    element("cible-apercu").src = selectedTarget.image;
+    element("cible-apercu").alt = selectedTarget.alt;
+    const url = "./cible.html?cible=" + targetKey;
+    element("ouvrir-cible").href = url;
+    element("ouvrir-cible-scan").href = url;
+    const current = new URL(location.href);
+    current.searchParams.set("cible", targetKey);
+    history.replaceState(null, "", current.href);
+  }
+  targetChoice.addEventListener("change", () => configureTarget(targetChoice.value));
+  configureTarget(targetKey);
 
   function renderStatus() {
     for (const [key, label] of [["camera", "Caméra"], ["nft", "Image"], ["media", "Animation"]]) {
@@ -38,7 +58,7 @@
         : state.searchingLong ? "L’image n’est pas encore reconnue" : "Place la photo dans le cadre";
       ui.message.textContent = state.found
         ? state.playbackBlocked ? "Touche « Activer l’animation » pour lancer le GIF." : "L’animation MMI suit la photo et se joue en boucle."
-        : "Rapproche la photo entière : le cercle ET les triangles doivent remplir le cadre. Évite les reflets et attends quelques secondes.";
+        : selectedTarget.guidance;
     } else {
       ui.title.textContent = "Préparation du scanner…";
       ui.message.textContent = state.slow
@@ -203,6 +223,7 @@
     const data = event.detail;
     if (data && [data.width, data.height, data.dpi].every((value) => Number.isFinite(value) && value > 0)) {
       markerInfo = data;
+      diagnostics.marker = { width: data.width, height: data.height, dpi: data.dpi };
       fitAnimation();
     }
   });
@@ -227,7 +248,7 @@
     renderStatus();
     try {
       await loadScript("https://aframe.io/releases/1.6.0/aframe.min.js", "A-Frame");
-      await loadScript("./vendor/aframe-ar-nft-3.4.7.js?v=20261110-4", "AR.js");
+      await loadScript("./vendor/aframe-ar-nft-3.4.7.js?v=20261110-5", "AR.js");
       if (!window.AFRAME || !AFRAME.primitives.primitives["a-nft"]) {
         throw new Error("La reconnaissance d’image n’a pas pu démarrer. Recharge la page pour réessayer.");
       }
@@ -307,7 +328,7 @@
       anchor = scene.querySelector("#ancrage");
       const marker = scene.querySelector("#marqueur");
       // Le worker AR.js doit recevoir l’URL complète, y compris /tp-arjs-gps/nft/.
-      marker.setAttribute("url", new URL(marker.getAttribute("url"), window.location.href).href);
+      marker.setAttribute("url", new URL(selectedTarget.descriptors, window.location.href).href);
       scene.addEventListener("renderstart", () => scene.renderer.setClearColor(0x000000, 0));
       scene.addEventListener("loaded", fitAnimation);
       scene.addEventListener("render-target-loaded", () => attachVideo(element("arjs-video")));

@@ -5,13 +5,16 @@ import path from 'node:path';
 import http from 'node:http';
 const root = process.cwd();
 const testMode = process.argv[2] || process.env.AR_CAMERA_TEST || 'resize';
-const portrait = testMode === 'portrait';
+const portrait = testMode === 'portrait' || testMode === 'stress';
+const legacyTarget = testMode === 'photo';
+const targetFraction = testMode === 'stress' ? 0.60 : 0.78;
+const captureFilter = testMode === 'stress' ? 'blur(1.5px) brightness(0.9)' : testMode === 'blur' ? 'blur(0.6px) brightness(0.95)' : 'none';
 const resizeCase = testMode === 'resize';
 const blur = testMode === 'blur';
 const out = await fs.mkdtemp(path.join(os.tmpdir(), 'tp-arjs-browser-'));
 let missingMedia = false;
 const requests = [], errors = [], browserErrors = [], consoleMessages=[];
-const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.webp':'image/webp','.glb':'model/gltf-binary','.mp4':'video/mp4','.gif':'image/gif'};
+const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.webp':'image/webp','.png':'image/png','.glb':'model/gltf-binary','.mp4':'video/mp4','.gif':'image/gif'};
 const server = http.createServer(async (req,res) => {
   try {
     let url = new URL(req.url, 'http://localhost').pathname;
@@ -65,7 +68,7 @@ try {
   await rpc('Runtime.enable');await rpc('Page.enable');await rpc('Log.enable');await rpc('Target.setAutoAttach',{autoAttach:true,waitForDebuggerOnStart:false,flatten:true});
   await rpc('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await rpc('Emulation.setTouchEmulationEnabled',{enabled:true});
-  await rpc('Page.navigate',{url:origin+'/'});
+  await rpc('Page.navigate',{url:origin+(legacyTarget?'/?cible=photo':'/')});
   await waitFor(`location.pathname === '/nft/' && document.getElementById('demarrer') && document.getElementById('demarrer').offsetHeight > 0`);
   check(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth`),'Mobile landing overflows horizontally');
   check(await evaluate(`document.querySelector('.apercu img').naturalWidth === 1280`),'Target preview is missing');
@@ -80,10 +83,10 @@ try {
         navigator.mediaDevices.getUserMedia=async()=>{throw new DOMException('Test camera denied','NotAllowedError');};
         return;
       }
-      const image=new Image();image.src='./assets/IMG_9765.webp';await image.decode();
+      const image=new Image();image.src=document.getElementById('cible-apercu').src;await image.decode();
       const canvas=document.createElement('canvas');canvas.width=${resizeCase ? 320 : portrait ? 960 : 1280};canvas.height=${resizeCase ? 240 : portrait ? 1280 : 960};
       const context=canvas.getContext('2d');window.__showMarker=${!resizeCase};
-      function draw(){context.fillStyle='#eeeeee';context.fillRect(0,0,canvas.width,canvas.height);context.filter=${JSON.stringify(blur ? 'blur(0.6px) brightness(0.95)' : 'none')};const targetWidth=canvas.width*0.78,targetHeight=targetWidth*0.75;window.__targetBox={x:(canvas.width-targetWidth)/2,y:(canvas.height-targetHeight)/2,width:targetWidth,height:targetHeight};if(window.__showMarker)context.drawImage(image,window.__targetBox.x,window.__targetBox.y,targetWidth,targetHeight);context.filter='none';}
+      function draw(){context.fillStyle='#eeeeee';context.fillRect(0,0,canvas.width,canvas.height);context.filter=${JSON.stringify(captureFilter)};const targetWidth=canvas.width*${targetFraction},targetHeight=targetWidth*0.75;window.__targetBox={x:(canvas.width-targetWidth)/2,y:(canvas.height-targetHeight)/2,width:targetWidth,height:targetHeight};if(window.__showMarker)context.drawImage(image,window.__targetBox.x,window.__targetBox.y,targetWidth,targetHeight);context.filter='none';}
       draw();window.__cameraInterval=setInterval(draw,70);
       window.__cameraCanvas=canvas;window.__cameraStream=canvas.captureStream(15);
       navigator.mediaDevices.getUserMedia=async()=>window.__cameraStream;
@@ -107,6 +110,7 @@ try {
   const geometry=await evaluate(`(()=>{const a=document.getElementById('ancrage').object3D,p=document.getElementById('animation').object3D;return {anchor:a.position.toArray(),scale:p.scale.toArray(),rotation:p.rotation.toArray(),events:window.__markerEvents,metadata:window.__markerMetadata,video:{width:document.getElementById('arjs-video').videoWidth,height:document.getElementById('arjs-video').videoHeight},smooth:document.getElementById('marqueur').components['arjs-anchor'].data.smoothCount};})()`);
   check(geometry.anchor[0]>0 && geometry.anchor[1]===0 && geometry.anchor[2]<0,'Animation anchor is not centered on NFT image plane');
   check(geometry.smooth===10,'NFT smoothing mapping is invalid');
+  check(geometry.metadata.width===(legacyTarget?1280:640),'The descriptors do not match the chosen target');
   await evaluate(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))`);
   console.log('MOBILE LAYOUT',await evaluate(`JSON.stringify({innerWidth,innerHeight,body:document.body.getBoundingClientRect().toJSON(),interface:document.getElementById('interface').getBoundingClientRect().toJSON(),status:document.querySelector('.etat').getBoundingClientRect().toJSON(),video:document.getElementById('arjs-video').getBoundingClientRect().toJSON(),canvas:document.querySelector('a-scene').canvas.getBoundingClientRect().toJSON()})`));
   check(await evaluate(`getComputedStyle(document.getElementById('arjs-video')).zIndex === '0'`),'Camera video is hidden behind the page');
@@ -119,12 +123,13 @@ try {
   console.log('PASS animation coverage relative to image:',mediaHeightRatio.toFixed(3));
   await evaluate(`document.getElementById('diagnostic').open=true;true`);
   await waitFor(`Number(document.getElementById('analyse-canvas').dataset.frameNumber)>0`);
-  check(await evaluate(`(()=>{const p=document.getElementById('analyse-canvas').getContext('2d').getImageData(320,240,1,1).data;return p[1]>p[0]+10&&p[2]>p[0]+10})()`),'The analysed frame does not contain the target in its center after camera resize');
+  check(await evaluate(`(()=>{const p=document.getElementById('analyse-canvas').getContext('2d').getImageData(320,240,1,1).data;return p[3]===255&&(p[0]+p[1]+p[2])>15})()`),'The analysed frame does not contain the target in its center after camera resize');
   console.log('PASS analysed-frame preview contains the target');
   await evaluate(`Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw new DOMException('Test clipboard refusal','NotAllowedError')}}});document.getElementById('copier-diagnostic').click();true`);
   await waitFor(`!document.getElementById('diagnostic-texte').hidden`);
   const report=await evaluate(`JSON.parse(document.getElementById('diagnostic-texte').textContent)`);
-  check(report.frames>0 && report.build==='20261110-4' && report.source[0] === (resizeCase || portrait ? 960 : 1280), 'Invalid diagnostic report');
+  check(report.target===(legacyTarget?'photo':'mmi'),'Diagnostic does not identify the selected target');
+  check(report.frames>0 && report.build==='20261110-5' && report.source[0] === (resizeCase || portrait ? 960 : 1280), 'Invalid diagnostic report');
   console.log('PASS diagnostic can be copied manually when clipboard is denied');
 
   await screenshot('03-analyse.png');
@@ -178,6 +183,14 @@ try {
   await rpc('Emulation.setEmulatedMedia',{media:'print'});
   check(await evaluate(`getComputedStyle(document.querySelector('nav')).display === 'none'`),'Print view exposes controls');
   console.log('PASS target page, download, print view');
+  await rpc('Emulation.setEmulatedMedia',{media:''});
+  for(const [key,filename] of [['mmi','MMI-cible.png'],['photo','IMG_9765.webp']]){
+    await rpc('Page.navigate',{url:origin+'/nft/cible.html?cible='+key});
+    await waitFor(`document.getElementById('cible-image')?.complete&&document.getElementById('cible-image').naturalWidth===1280&&document.getElementById('cible-image').src.endsWith('${filename}')`);
+    check(await evaluate(`document.getElementById('choix-cible').value==='${key}'&&document.getElementById('telecharger-cible').download==='${filename}'&&new URL(document.getElementById('ouvrir-scanner').href).searchParams.get('cible')==='${key}'`),'Target page, download and scanner link disagree for '+key);
+  }
+  console.log('PASS both target images, downloads and scanner links agree');
+
   check(errors.length===0,'Uncaught browser exceptions: '+JSON.stringify(errors));
   await fs.writeFile(path.join(out,'results.json'),JSON.stringify({geometry,requests,errors,browserErrors},null,2));
   console.log('ALL CHECKS PASSED. Artifacts: '+out);

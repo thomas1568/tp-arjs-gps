@@ -7,23 +7,30 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="description" content="Scanne l’image du projet pour lancer l’animation MMI en réalité augmentée.">
   <title>Scanner NFT · TP AR.js</title>
-  <link rel="stylesheet" href="./scanner.css?v=20261110-4">
-  <script src="./scanner.js?v=20261110-4" defer></script>
+  <link rel="stylesheet" href="./scanner.css?v=20261110-5">
+  <script src="./targets.js?v=20261110-5" defer></script>
+  <script src="./scanner.js?v=20261110-5" defer></script>
 </head>
 <body>
   <main id="accueil" class="accueil">
     <section class="carte" aria-labelledby="titre">
       <p class="surtitre">TP MMI · RÉALITÉ AUGMENTÉE</p>
       <h1 id="titre">Une image.<br>Ton animation MMI.</h1>
-      <p class="introduction">Scanne cette photo pour lancer ton GIF animé en réalité augmentée.</p>
-      <a class="apercu" href="./cible.html" target="_blank" rel="noopener" aria-label="Ouvrir l’image à scanner dans un nouvel onglet">
-        <img src="./assets/IMG_9765.webp" width="1280" height="960" alt="Image cible : un grand cercle turquoise sur un mur clair, entouré de triangles colorés.">
+      <p class="introduction">Affiche l’image MMI sur un autre écran, puis scanne-la pour lancer ton GIF animé.</p>
+      <label class="choix-cible" for="choix-cible">Image à reconnaître
+        <select id="choix-cible">
+          <option value="mmi">Image MMI avec le logo (recommandée)</option>
+          <option value="photo">Ancienne photo sans logo</option>
+        </select>
+      </label>
+      <a id="ouvrir-cible" class="apercu" href="./cible.html?cible=mmi" target="_blank" rel="noopener" aria-label="Ouvrir l’image à scanner dans un nouvel onglet">
+        <img id="cible-apercu" src="./assets/MMI-cible.png" width="1280" height="960" alt="Image cible : lettres MMI au centre du cercle turquoise, entouré de triangles colorés.">
         <span>Voir l’image à scanner ↗</span>
       </a>
       <ol class="etapes">
-        <li>Affiche cette image sur un <strong>autre écran</strong> ou imprime-la.</li>
+        <li>Affiche l’image choisie sur un <strong>autre écran</strong> ou imprime-la.</li>
         <li>Démarre le scanner et autorise la caméra.</li>
-        <li>Rapproche la photo entière du cadre, cercle et triangles compris.</li>
+        <li>Fais tenir l’image entière dans le cadre, logo et triangles compris.</li>
       </ol>
       <button id="demarrer" class="bouton principal" type="button">Démarrer le scanner</button>
       <p id="message-accueil" class="aide" role="status">Sur téléphone, ouvre ce site dans Safari ou Chrome.</p>
@@ -55,7 +62,7 @@
       <button id="reprendre" class="bouton principal" type="button" hidden>Activer la vidéo</button>
       <button id="activer-animation" class="bouton principal" type="button" hidden>Activer l’animation</button>
       <button id="reessayer" class="bouton principal" type="button" hidden>Réessayer</button>
-      <a class="bouton secondaire" href="./cible.html" target="_blank" rel="noopener">Image à scanner ↗</a>
+      <a id="ouvrir-cible-scan" class="bouton secondaire" href="./cible.html?cible=mmi" target="_blank" rel="noopener">Image à scanner ↗</a>
       <button id="retour" class="bouton secondaire" type="button">Quitter</button>
     </div>
   </section>
@@ -74,7 +81,7 @@
       device-orientation-permission-ui="enabled: false"
       renderer="alpha: true; antialias: true; precision: medium; logarithmicDepthBuffer: true"
       arjs="trackingMethod: best; sourceType: webcam; sourceWidth: 1280; sourceHeight: 960; debugUIEnabled: false">
-      <a-nft id="marqueur" type="nft" url="./assets/IMG_9765"
+      <a-nft id="marqueur" type="nft" url="./assets/MMI-cible"
         smooth="true" smooth-count="10" smooth-tolerance="0.01" smooth-threshold="5">
         <!-- AR.js utilise le plan X/Z de l’image ; Y est sa normale. -->
         <a-entity id="ancrage" rotation="-90 0 0">

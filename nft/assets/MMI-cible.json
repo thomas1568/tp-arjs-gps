@@ -1,0 +1,20 @@
+{
+  "source": "assets/MMI-anime.gif",
+  "sourceFrame": 0,
+  "sourceSHA256": "4b94feb6bd4e291e3fb68810feed4de29118eed25ff56e38184938457179a438",
+  "referenceSize": [
+    1280,
+    960
+  ],
+  "trainingSize": [
+    640,
+    480
+  ],
+  "dpi": 53,
+  "channels": 3,
+  "parameters": "-level=4 -leveli=3",
+  "generator": "https://github.com/Carnaux/NFT-Marker-Creator",
+  "generatorJS_SHA256": "8b66ebeab2a9807720730784ce4f29797640edf6780881ef6e27235699edc937",
+  "generatorWasm_SHA256": "e4b965527c119572c4e998a298395ac879529974109e151a7d087a9f7e545771",
+  "kpmFeatures": 1290
+}

@@ -68,3 +68,10 @@ a-scene canvas { background: transparent; }
   .commandes { left: auto; width: 45vw; }
   .viseur { width: 40vw; }
 }
+
+.diagnostic { flex-basis: 100%; min-width: 0; color: #d0dfd7; font-size: 12px; }
+.diagnostic summary { padding: 9px 6px; cursor: pointer; font-weight: 650; }
+.diagnostic p { margin: 8px 4px; line-height: 1.5; }
+.diagnostic canvas { display: block; width: min(100%, 240px); height: auto; margin: 10px auto; background: #000; border: 1px solid #496355; border-radius: 6px; }
+.diagnostic .bouton { width: 100%; font-size: 12px; }
+.diagnostic pre { max-height: 140px; margin: 10px 0 0; padding: 8px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; background: #10231e; user-select: text; }

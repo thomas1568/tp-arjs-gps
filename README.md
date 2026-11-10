@@ -41,3 +41,11 @@ Les paramètres de stabilisation se nomment `smooth-count`, `smooth-tolerance` e
 - Modèle : [MENS, par kwong.x](https://sketchfab.com/3d-models/mens-a400147bb3cb4bd0b36b8ed245d0b5b5), sous licence [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Le modèle est affiché avec une position et une échelle adaptées à la cible.
 - [Documentation AR.js : suivi d’image NFT](https://ar-js-org.github.io/AR.js-Docs/image-tracking/).
 - Support du TD : B3MAR56-TD7-AR.js, partie « Marker sous forme d’image » (pages 9 à 11).
+
+## Vérification sur téléphone
+
+Si la photo n’est pas reconnue, ouvrir **Vérifier l’image analysée** dans le scanner. Cet aperçu vient du buffer effectivement envoyé au moteur NFT. La photo complète doit y apparaître, avec une image qui s’actualise. **Copier le diagnostic** fournit la version, les dimensions du flux et du recadrage, le compteur d’images et l’éventuelle erreur. Si la copie n’est pas disponible, le texte est affiché pour une copie manuelle.
+
+Le recadrage est recalculé pour chaque image afin de suivre les changements de résolution du flux vidéo après son démarrage. Voir [l’événement resize de HTMLVideoElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/resize_event).
+
+La régression peut être testée avec Node.js et Chrome : `node tests/nft-browser.mjs`. Le mode par défaut démarre une caméra simulée en 320 × 240, attend le chargement NFT puis change le flux en 960 × 1280 avant de présenter la photo. Le test vérifie la reconnaissance, le buffer réellement analysé, les proportions du modèle et les erreurs caméra/modèle. `CHROME_PATH` permet de préciser le chemin du navigateur ; `node tests/nft-browser.mjs portrait` ou `node tests/nft-browser.mjs landscape` sélectionne un flux fixe.

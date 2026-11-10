@@ -10,6 +10,8 @@
     resume: element("reprendre"), retry: element("reessayer")
   };
   let scene, character, anchor, video, modelBounds, watchdog, searchTimer;
+  const diagnostics = { build: "20261110-3", frames: 0, lastFrameAt: 0, source: null,
+    crop: null, mean: null, contrast: null, firstVideoSize: null, resizes: 0, error: "" };
   // Métadonnées du fichier IMG_9765.iset, mises à jour par AR.js au chargement.
   let markerInfo = { width: 1280, height: 960, dpi: 106 };
 
@@ -84,6 +86,9 @@
 
   function updateVideoState() {
     state.camera = Boolean(video && video.videoWidth > 0 && video.readyState >= 2 && !video.paused);
+    if (video && video.videoWidth && !diagnostics.firstVideoSize) {
+      diagnostics.firstVideoSize = [video.videoWidth, video.videoHeight];
+    }
     ui.resume.hidden = !video || !video.paused || Boolean(state.error);
     renderStatus();
   }
@@ -105,6 +110,7 @@
     video.muted = true;
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
+    video.addEventListener("resize", () => { diagnostics.resizes++; updateVideoState(); });
     for (const event of ["loadeddata", "playing", "pause", "emptied"]) {
       video.addEventListener(event, updateVideoState);
     }
@@ -115,6 +121,47 @@
   // les chargements rapides du GLB, de la caméra ou des descripteurs NFT.
   window.addEventListener("arjs-video-loaded", (event) => {
     attachVideo(event.detail && event.detail.component || element("arjs-video"));
+  });
+  window.addEventListener("arjs-nft-frame", (event) => {
+    const data = event.detail;
+    if (!state.active || !data) return;
+    diagnostics.frames = data.frameNumber;
+    diagnostics.lastFrameAt = Date.now();
+    diagnostics.source = [data.sourceWidth, data.sourceHeight];
+    diagnostics.crop = data.crop;
+    diagnostics.mean = data.mean;
+    diagnostics.contrast = data.contrast;
+    element("analyse-etat").textContent = data.mean < 2 && data.contrast < 2
+      ? "L’image analysée est noire. Réactive la vidéo ou redémarre le scanner."
+      : "Images reçues : " + data.frameNumber + " · caméra : " + data.sourceWidth + " × " + data.sourceHeight;
+    if (element("diagnostic").open && data.imageData) {
+      const canvas = element("analyse-canvas");
+      canvas.getContext("2d").putImageData(data.imageData, 0, 0);
+      canvas.dataset.frameNumber = String(data.frameNumber);
+    }
+  });
+  window.addEventListener("arjs-nft-error", (event) => {
+    diagnostics.error = event.detail && event.detail.message || "Erreur du moteur NFT";
+    fail("La reconnaissance a été interrompue. Touche « Réessayer ». Si cela recommence, ouvre « Vérifier l’image analysée » et copie le diagnostic.");
+  });
+  element("copier-diagnostic").addEventListener("click", async () => {
+    const report = { ...diagnostics, cameraReady: state.camera, nftReady: state.nft,
+      modelReady: state.model, imageFound: state.found,
+      videoSize: video ? [video.videoWidth, video.videoHeight] : null,
+      readyState: video ? video.readyState : null,
+      secondsSinceLastFrame: diagnostics.lastFrameAt ? Math.round((Date.now() - diagnostics.lastFrameAt) / 1000) : null,
+      browser: navigator.userAgent };
+    const text = JSON.stringify(report, null, 2);
+    const output = element("diagnostic-texte");
+    output.textContent = text;
+    try {
+      await navigator.clipboard.writeText(text);
+      element("copier-diagnostic").textContent = "Diagnostic copié";
+    } catch (error) {
+      output.hidden = false;
+      output.focus();
+      element("copier-diagnostic").textContent = "Sélectionne le texte ci-dessous pour le copier";
+    }
   });
   window.addEventListener("camera-error", () => {
     fail("Impossible d’ouvrir la caméra. Autorise son accès dans les réglages du site et ferme les autres applications qui l’utilisent. Sur téléphone, ouvre le lien directement dans Safari ou Chrome.");
@@ -145,7 +192,7 @@
     renderStatus();
     try {
       await loadScript("https://aframe.io/releases/1.6.0/aframe.min.js", "A-Frame");
-      await loadScript("./vendor/aframe-ar-nft-3.4.7.js?v=20261110-2", "AR.js");
+      await loadScript("./vendor/aframe-ar-nft-3.4.7.js?v=20261110-3", "AR.js");
       if (!window.AFRAME || !AFRAME.primitives.primitives["a-nft"]) {
         throw new Error("La reconnaissance d’image n’a pas pu démarrer. Recharge la page pour réessayer.");
       }

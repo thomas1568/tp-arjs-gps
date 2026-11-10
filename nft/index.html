@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#10231e">
   <meta name="description" content="Scanne l’image du projet pour faire apparaître un personnage en réalité augmentée.">
   <title>Scanner NFT · TP AR.js</title>
-  <link rel="stylesheet" href="./scanner.css?v=20261110-2">
-  <script src="./scanner.js?v=20261110-2" defer></script>
+  <link rel="stylesheet" href="./scanner.css?v=20261110-3">
+  <script src="./scanner.js?v=20261110-3" defer></script>
 </head>
 <body>
   <main id="accueil" class="accueil">
@@ -43,6 +43,14 @@
     </div>
     <div id="viseur" class="viseur" aria-hidden="true"></div>
     <div class="commandes panneau">
+      <details id="diagnostic" class="diagnostic">
+        <summary>Vérifier l’image analysée</summary>
+        <p>La photo entière doit être visible dans cet aperçu et rester nette.</p>
+        <canvas id="analyse-canvas" width="640" height="480" aria-label="Image effectivement transmise à la reconnaissance NFT"></canvas>
+        <p id="analyse-etat">En attente d’une image analysée…</p>
+        <button id="copier-diagnostic" class="bouton secondaire" type="button">Copier le diagnostic</button>
+        <pre id="diagnostic-texte" tabindex="0" hidden></pre>
+      </details>
       <button id="reprendre" class="bouton principal" type="button" hidden>Activer la vidéo</button>
       <button id="reessayer" class="bouton principal" type="button" hidden>Réessayer</button>
       <a class="bouton secondaire" href="./cible.html" target="_blank" rel="noopener">Image à scanner ↗</a>

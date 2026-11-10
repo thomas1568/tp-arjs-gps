@@ -8,11 +8,15 @@
 
   <title>TP AR.js - GPS Corte</title>
 
-  <!-- Bibliothèque A-Frame -->
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <!-- A-Frame -->
+  <script
+    src="https://aframe.io/releases/1.6.0/aframe.min.js">
+  </script>
 
-  <!-- AR.js avec géolocalisation -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+  <!-- AR.js -->
+  <script
+    src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js">
+  </script>
 
   <style>
     * {
@@ -22,58 +26,84 @@
     body {
       margin: 0;
       overflow: hidden;
-      font-family: Arial, sans-serif;
       background: #111;
+      font-family: Arial, sans-serif;
     }
 
-    #status {
+    #interface {
       position: fixed;
       top: 12px;
       left: 12px;
       right: 12px;
-      padding: 14px;
+      z-index: 9999;
+      padding: 15px;
+      border-radius: 10px;
       background: rgba(0, 0, 0, 0.85);
       color: white;
-      border-radius: 10px;
-      z-index: 9999;
       font-size: 14px;
       line-height: 1.5;
     }
 
-    #status strong {
-      color: #62d7ff;
+    #titre {
+      font-weight: bold;
+      color: #58d6ff;
+      margin-bottom: 5px;
+    }
+
+    #message {
+      margin-top: 6px;
+    }
+
+    #details {
+      margin-top: 6px;
+      color: #cccccc;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    #autoriser {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #27ae60;
+      color: white;
+      font-size: 14px;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="status">
-    <strong>TP AR.js - GPS Corte</strong>
-    <div id="message">Initialisation...</div>
+  <!-- Interface de diagnostic -->
+  <div id="interface">
+    <div id="titre">TP AR.js - GPS Corte</div>
+
+    <div id="message">
+      Initialisation...
+    </div>
+
+    <div id="details"></div>
+
+    <button id="autoriser">
+      Autoriser les capteurs
+    </button>
   </div>
 
-  <!-- Scène de réalité augmentée -->
+  <!-- Scène AR -->
   <a-scene
     embedded
     vr-mode-ui="enabled: false"
+    loading-screen="enabled: false"
     arjs="sourceType: webcam; debugUIEnabled: false"
-    renderer="antialias: true; alpha: true"
-    loading-screen="enabled: false">
+    renderer="antialias: true; alpha: true">
 
-    <!-- Chargement du modèle -->
-    <a-assets timeout="30000">
-      <a-asset-item
-        id="modele"
-        src="./assets/personnage.glb">
-      </a-asset-item>
-    </a-assets>
-
-    <!-- Objet 3D géolocalisé -->
+    <!-- Modèle GLB -->
     <a-entity
       id="personnage"
       gps-new-entity-place="latitude: 42.306699560260455; longitude: 9.148512279247452"
-      gltf-model="#modele"
+      gltf-model="url(./assets/personnage.glb)"
       scale="1 1 1"
       position="0 0 0"
       rotation="0 0 0">
@@ -90,64 +120,170 @@
 
   <script>
     const message = document.getElementById("message");
+    const details = document.getElementById("details");
+    const bouton = document.getElementById("autoriser");
     const scene = document.querySelector("a-scene");
-    const model = document.getElementById("personnage");
+    const personnage = document.getElementById("personnage");
 
-    function updateStatus(text) {
-      message.textContent = text;
-      console.log("[AR.js]", text);
+    let gpsActif = false;
+    let modeleCharge = false;
+
+    function afficher(texte, detail = "") {
+      message.textContent = texte;
+      details.textContent = detail;
+      console.log("[TP AR.js]", texte, detail);
     }
 
-    scene.addEventListener("loaded", () => {
-      updateStatus("Scène chargée. Attente du GPS...");
+    // Vérification des bibliothèques
+    if (typeof AFRAME === "undefined") {
+      afficher("Erreur : A-Frame non chargé.");
+    } else if (
+      !AFRAME.components["gps-new-camera"] ||
+      !AFRAME.components["gps-new-entity-place"]
+    ) {
+      afficher(
+        "Erreur : composants GPS AR.js absents.",
+        "Vérifier le chargement du script AR.js."
+      );
+    } else {
+      afficher("Bibliothèques chargées. Initialisation...");
+    }
+
+    // Chargement de la scène
+    scene.addEventListener("loaded", function () {
+      if (!gpsActif) {
+        afficher("Scène prête. Attente de la position GPS...");
+      }
     });
 
-    scene.addEventListener("arjs-video-loaded", () => {
-      updateStatus("Caméra active. Attente GPS...");
+    // Chargement du modèle
+    personnage.addEventListener("model-loaded", function () {
+      modeleCharge = true;
+
+      if (!gpsActif) {
+        afficher("Modèle 3D chargé. Attente GPS...");
+      } else {
+        afficher("GPS et modèle 3D prêts.");
+      }
     });
 
-    scene.addEventListener("arjs-video-error", () => {
-      updateStatus("Erreur caméra : autorisation refusée ?");
-    });
-
-    model.addEventListener("model-loaded", () => {
-      updateStatus("Modèle 3D chargé. Attente GPS...");
-    });
-
-    model.addEventListener("model-error", (event) => {
-      updateStatus("Erreur de chargement du modèle GLB.");
+    personnage.addEventListener("model-error", function (event) {
+      afficher(
+        "Erreur : impossible de charger personnage.glb",
+        "Vérifier assets/personnage.glb"
+      );
       console.error(event.detail);
     });
 
+    // Caméra AR.js
+    window.addEventListener("arjs-video-loaded", function () {
+      if (!gpsActif) {
+        afficher("Caméra initialisée. Attente GPS...");
+      }
+    });
+
+    window.addEventListener("arjs-video-error", function () {
+      afficher(
+        "Erreur caméra.",
+        "Vérifier les autorisations Safari."
+      );
+    });
+
+    // GPS
     window.addEventListener(
       "gps-camera-update-position",
-      (event) => {
-        const coords = event.detail.position;
+      function (event) {
+        gpsActif = true;
 
-        updateStatus(
-          "GPS actif : " +
-          coords.latitude.toFixed(6) + ", " +
-          coords.longitude.toFixed(6)
+        const position = event.detail.position;
+
+        const latitude = position.latitude;
+        const longitude = position.longitude;
+
+        afficher(
+          modeleCharge
+            ? "GPS et modèle 3D prêts."
+            : "GPS actif. Chargement du modèle...",
+          "Latitude : " + latitude.toFixed(6) +
+          " | Longitude : " + longitude.toFixed(6)
         );
       }
     );
 
-    window.addEventListener("gps-camera-error", (event) => {
-      updateStatus("Erreur GPS : " +
-        JSON.stringify(event.detail));
+    window.addEventListener("gps-camera-error", function (event) {
+      afficher(
+        "Erreur GPS.",
+        JSON.stringify(event.detail || {})
+      );
     });
 
-    window.addEventListener("error", (event) => {
-      updateStatus("Erreur JavaScript : " + event.message);
+    // Permission des capteurs iPhone
+    if (
+      typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function"
+    ) {
+      bouton.style.display = "block";
+
+      bouton.addEventListener("click", async function () {
+        try {
+          const permission =
+            await DeviceOrientationEvent.requestPermission();
+
+          if (permission === "granted") {
+            bouton.style.display = "none";
+            afficher(
+              "Capteurs autorisés. Attente GPS..."
+            );
+          } else {
+            afficher(
+              "Permission d'orientation refusée."
+            );
+          }
+        } catch (erreur) {
+          afficher(
+            "Erreur de permission.",
+            erreur.message
+          );
+        }
+      });
+    }
+
+    // Diagnostic des erreurs JavaScript
+    window.addEventListener("error", function (event) {
+      const source = event.filename || "source inconnue";
+
+      afficher(
+        "Erreur JavaScript.",
+        event.message + " | " + source
+      );
+
+      console.error(event);
     });
 
-    setTimeout(() => {
-      if (message.textContent === "Initialisation...") {
-        updateStatus(
-          "Chargement trop long : vérifier scripts, caméra et console."
+    window.addEventListener(
+      "unhandledrejection",
+      function (event) {
+        const raison = event.reason;
+
+        afficher(
+          "Erreur asynchrone.",
+          raison && raison.message
+            ? raison.message
+            : String(raison)
         );
       }
-    }, 15000);
+    );
+
+    // Diagnostic si l'application ne démarre pas
+    setTimeout(function () {
+      if (!gpsActif) {
+        afficher(
+          "GPS non détecté après 20 secondes.",
+          "Vérifier localisation, caméra et console."
+        );
+      }
+    }, 20000);
+
   </script>
 
 </body>

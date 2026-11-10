@@ -6,90 +6,103 @@
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-  <title>TP AR.js - Test 3D</title>
+  <title>Test A-Frame iPhone</title>
 
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 
   <style>
-    body {
+    html, body {
       margin: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      font-family: Arial, sans-serif;
+      background: #202840;
+    }
+
+    a-scene {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      width: 100vw !important;
+      height: 100dvh !important;
     }
 
     #status {
       position: fixed;
-      top: 15px;
+      top: 70px;
       left: 15px;
       right: 15px;
       z-index: 9999;
-      padding: 15px;
+      padding: 14px;
+      border-radius: 10px;
       background: rgba(0, 0, 0, 0.85);
       color: white;
-      border-radius: 10px;
+      font: 14px Arial, sans-serif;
+      line-height: 1.5;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="status">
-    Chargement de la scène 3D...
-  </div>
-
   <a-scene
-    embedded
     vr-mode-ui="enabled: false"
     loading-screen="enabled: false"
     background="color: #202840">
 
-    <!-- Caméra fixe -->
     <a-entity
       camera
-      position="0 1.6 0"
-      look-controls="enabled: false">
+      position="0 0 0"
+      look-controls="enabled: false"
+      wasd-controls="enabled: false">
     </a-entity>
 
-    <!-- Cube bleu -->
     <a-box
-      position="0 1.6 -3"
-      width="1.5"
-      height="1.5"
-      depth="1.5"
-      rotation="0 45 0"
-      color="#00BFFF">
+      position="0 0 -3"
+      width="2"
+      height="2"
+      depth="2"
+      color="#00BFFF"
+      material="shader: flat">
     </a-box>
-
-    <!-- Lumière ambiante -->
-    <a-light
-      type="ambient"
-      color="#FFFFFF"
-      intensity="1">
-    </a-light>
 
   </a-scene>
 
-  <script>
-    const status = document.getElementById("status");
-    const scene = document.querySelector("a-scene");
+  <div id="status">Initialisation...</div>
 
-    scene.addEventListener("loaded", () => {
-      status.textContent =
-        "Scène A-Frame chargée. Le cube doit être visible.";
-    });
+  <script>
+    const scene = document.querySelector("a-scene");
+    const status = document.getElementById("status");
 
     scene.addEventListener("renderstart", () => {
-      status.textContent =
-        "Rendu 3D démarré. Cherche le cube bleu.";
+      setTimeout(() => {
+        const canvas = scene.canvas;
+
+        if (!canvas) {
+          status.textContent = "ERREUR : canvas absent";
+          return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+
+        status.textContent =
+          "A-Frame : rendu démarré" +
+          "\nCanvas CSS : " +
+          Math.round(rect.width) + " x " +
+          Math.round(rect.height) +
+          "\nCanvas pixels : " +
+          canvas.width + " x " + canvas.height +
+          "\nWebGL : " +
+          (scene.renderer ? "initialisé" : "absent");
+
+        status.style.whiteSpace = "pre-line";
+      }, 1000);
     });
 
-    scene.addEventListener("rendererinitialized", () => {
-      console.log("Renderer initialisé");
-    });
-
-    scene.addEventListener("error", (event) => {
-      status.textContent =
-        "Erreur de rendu : " + event.message;
+    window.addEventListener("error", (e) => {
+      if (e.message !== "Script error.") {
+        status.textContent = "Erreur : " + e.message;
+      }
     });
   </script>
 

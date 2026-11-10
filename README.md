@@ -8,7 +8,7 @@ Le scanner reconnaît l’image `nft/assets/IMG_9765.webp` et affiche le modèle
 2. Sur un ordinateur, ouvrir [l’image à scanner](https://thomas1568.github.io/tp-arjs-gps/nft/cible.html), ou l’imprimer.
 3. Sur le téléphone, ouvrir [le projet](https://thomas1568.github.io/tp-arjs-gps/) dans Safari ou Chrome. La page principale redirige vers `/nft/`.
 4. Toucher **Démarrer le scanner**, autoriser la caméra et attendre les trois indicateurs de chargement.
-5. Viser l’image entière avec une bonne lumière, sans reflet. Le personnage apparaît au centre et disparaît quand l’image sort du champ.
+5. La vidéo montre désormais tout le capteur, sans zoom qui recadre la photo en portrait. Rapprocher la photo entière pour remplir le cadre, cercle et triangles compris, avec une bonne lumière et sans reflet. Le personnage apparaît au centre et disparaît quand l’image sort du champ.
 
 Sur iPhone, si la vidéo ne démarre pas, toucher **Activer la vidéo**. Le fichier GLB fait environ 10 Mo : le premier chargement peut prendre quelques secondes. Le lien [camera-test.html](./camera-test.html) permet de vérifier séparément l’autorisation de la caméra.
 
@@ -17,7 +17,7 @@ Sur iPhone, si la vidéo ne démarre pas, toucher **Activer la vidéo**. Le fich
 - `index.html` : accès au scanner depuis la racine GitHub Pages.
 - `nft/index.html` : interface et scène A-Frame.
 - `nft/scanner.js` : démarrage, événements caméra/NFT, dimensionnement et centrage du GLB.
-- `nft/scanner.css` : présentation mobile ; les dimensions vidéo/canvas sont synchronisées pour éviter les déformations en portrait.
+- `nft/scanner.css` : présentation mobile ; la vidéo entière reste visible entre les commandes ; les dimensions vidéo/canvas sont synchronisées pour éviter les déformations en portrait.
 - `nft/cible.html` : image cible à afficher, télécharger ou imprimer.
 - `nft/assets/IMG_9765.fset`, `.fset3`, `.iset` : descripteurs de reconnaissance déjà présents.
 - `assets/personnage.glb` : modèle 3D déjà présent.
@@ -31,6 +31,8 @@ Pour une vérification locale : `python -m http.server 8000`, puis ouvrir `http:
 Pour changer l’image, générer les trois nouveaux descripteurs avec [NFT Marker Creator](https://carnaux.github.io/NFT-Marker-Creator/), les placer ensemble dans `nft/assets/`, puis remplacer l’URL de `<a-nft>` dans `nft/index.html` (sans extension). Mettre aussi à jour l’aperçu dans les deux pages HTML. Les métadonnées reçues d’AR.js recentrent automatiquement le modèle sur la cible.
 
 Pour changer le modèle, remplacer `assets/personnage.glb`, ou modifier `gltf-model` dans `nft/index.html`. Le script ramène sa hauteur à 65 % du petit côté de la cible et le centre face à la caméra, devant l’image. L’ancrage utilise une rotation de -90° autour de X pour montrer le personnage de face lorsque l’image est vue de face. Le GLB doit utiliser l’axe Y vers le haut. Ce modèle ne contient pas d’animation.
+
+La reconnaissance analyse la zone centrale 4/3 en 640 × 480 pixels, que la caméra fournisse un flux paysage ou portrait. Cette zone correspond au cadre de visée. La projection du modèle prend en compte ce recadrage. Après dix secondes sans reconnaissance, l’interface donne une indication explicite ; la recherche continue.
 
 Les paramètres de stabilisation se nomment `smooth-count`, `smooth-tolerance` et `smooth-threshold` dans la balise `<a-nft>`.
 

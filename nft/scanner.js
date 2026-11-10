@@ -2,14 +2,14 @@
 
 (() => {
   const element = (id) => document.getElementById(id);
-  const state = { active: false, camera: false, nft: false, model: false, found: false, error: "", slow: false };
+  const state = { active: false, camera: false, nft: false, model: false, found: false, error: "", slow: false, searchingLong: false };
   const ui = {
     home: element("accueil"), start: element("demarrer"), interface: element("interface"),
     title: element("etat-titre"), message: element("etat-message"),
     camera: element("etat-camera"), nft: element("etat-nft"), model: element("etat-modele"),
     resume: element("reprendre"), retry: element("reessayer")
   };
-  let scene, character, anchor, video, modelBounds, watchdog;
+  let scene, character, anchor, video, modelBounds, watchdog, searchTimer;
   // Métadonnées du fichier IMG_9765.iset, mises à jour par AR.js au chargement.
   let markerInfo = { width: 1280, height: 960, dpi: 106 };
 
@@ -27,10 +27,14 @@
     } else if (state.camera && state.nft && state.model) {
       clearTimeout(watchdog);
       ui.retry.hidden = true;
-      ui.title.textContent = state.found ? "Image reconnue !" : "Vise l’image à scanner";
+      if (!state.found && !searchTimer) {
+        searchTimer = setTimeout(() => { state.searchingLong = true; renderStatus(); }, 10000);
+      }
+      ui.title.textContent = state.found ? "Image reconnue !"
+        : state.searchingLong ? "L’image n’est pas encore reconnue" : "Place la photo dans le cadre";
       ui.message.textContent = state.found
         ? "Le personnage suit l’image. Garde-la dans le cadre."
-        : "Cadre l’image entière, reste stable et évite les reflets.";
+        : "Rapproche la photo entière : le cercle ET les triangles doivent remplir le cadre. Évite les reflets et attends quelques secondes.";
     } else {
       ui.title.textContent = "Préparation du scanner…";
       ui.message.textContent = state.slow
@@ -44,6 +48,7 @@
   function fail(message) {
     state.error = message;
     clearTimeout(watchdog);
+    clearTimeout(searchTimer);
     renderStatus();
   }
 
@@ -140,28 +145,78 @@
     renderStatus();
     try {
       await loadScript("https://aframe.io/releases/1.6.0/aframe.min.js", "A-Frame");
-      await loadScript("./vendor/aframe-ar-nft-3.4.7.js", "AR.js");
+      await loadScript("./vendor/aframe-ar-nft-3.4.7.js?v=20261110-2", "AR.js");
       if (!window.AFRAME || !AFRAME.primitives.primitives["a-nft"]) {
         throw new Error("La reconnaissance d’image n’a pas pu démarrer. Recharge la page pour réessayer.");
       }
-      // A-Frame redimensionne son canvas au viewport. En AR, le canvas doit
-      // partager le cadrage de la vidéo pour garder les proportions et la pose.
+      // Montrer tout le capteur, sans zoom en portrait : la photo peut alors
+      // remplir le cadre tout en restant entièrement visible et assez détaillée.
       AFRAME.registerComponent("align-video-overlay", {
-        init() { this.renderSize = new AFRAME.THREE.Vector2(); },
+        init() {
+          this.renderSize = new AFRAME.THREE.Vector2();
+          this.projection = new AFRAME.THREE.Matrix4();
+          this.projectionKey = "";
+          this.previousBeforeRender = this.el.object3D.onBeforeRender;
+          this.el.object3D.onBeforeRender = (renderer, world, camera) => {
+            if (this.previousBeforeRender) this.previousBeforeRender.call(world, renderer, world, camera);
+            // AR.js rétablit sa projection pendant le tick : appliquer celle
+            // du recadrage juste avant le rendu pour conserver les proportions.
+            if (this.projectionKey) {
+              camera.projectionMatrix.copy(this.projection);
+              camera.projectionMatrixInverse.copy(this.projection).invert();
+            }
+          };
+        },
+        remove() { this.el.object3D.onBeforeRender = this.previousBeforeRender; },
         tick() {
           const cameraVideo = element("arjs-video");
           const renderer = this.el.renderer;
           const canvas = this.el.canvas;
           if (!cameraVideo || !cameraVideo.videoWidth || !renderer || !canvas) return;
-          const width = cameraVideo.offsetWidth;
-          const height = cameraVideo.offsetHeight;
-          if (!width || !height) return;
-          renderer.getSize(this.renderSize);
-          if (this.renderSize.x !== width || this.renderSize.y !== height) {
-            renderer.setSize(width, height, false);
+          const top = document.querySelector(".etat").getBoundingClientRect().bottom + 12;
+          const bottom = document.querySelector(".commandes").getBoundingClientRect().top - 12;
+          const availableHeight = Math.max(100, bottom - top);
+          const ratio = Math.min((window.innerWidth - 24) / cameraVideo.videoWidth,
+            availableHeight / cameraVideo.videoHeight);
+          const width = Math.round(cameraVideo.videoWidth * ratio);
+          const height = Math.round(cameraVideo.videoHeight * ratio);
+          const left = (window.innerWidth - width) / 2;
+          const offsetTop = top + (availableHeight - height) / 2;
+          const styles = { width: width + "px", height: height + "px",
+            marginLeft: left + "px", marginTop: offsetTop + "px" };
+          // AR.js réécrit ses styles en cours de rendu. Les variables CSS
+          // communes gardent la vidéo et le canvas cadrés de la même façon.
+          const cssKeys = { width: "--camera-width", height: "--camera-height",
+            marginLeft: "--camera-left", marginTop: "--camera-top" };
+          for (const [key, value] of Object.entries(styles)) {
+            const name = cssKeys[key];
+            if (document.documentElement.style.getPropertyValue(name) !== value) {
+              document.documentElement.style.setProperty(name, value);
+            }
           }
-          for (const key of ["width", "height", "marginLeft", "marginTop"]) {
-            if (canvas.style[key] !== cameraVideo.style[key]) canvas.style[key] = cameraVideo.style[key];
+          renderer.getSize(this.renderSize);
+          if (this.renderSize.x !== width || this.renderSize.y !== height) renderer.setSize(width, height, false);
+          if (renderer.getPixelRatio() > 2) renderer.setPixelRatio(2);
+          const guide = element("viseur");
+          guide.style.width = Math.min(width * 0.82, height * 0.82 * 4 / 3) + "px";
+          guide.style.left = (left + width / 2) + "px";
+          guide.style.top = (offsetTop + height / 2) + "px";
+
+          // Le worker analyse le rectangle 4/3 central du capteur.
+          // Reprojeter cette zone dans la vidéo entière, même en portrait.
+          const context = this.el.systems.arjs && this.el.systems.arjs._arSession && this.el.systems.arjs._arSession.arContext;
+          if (context && context.arController && this.el.camera) {
+            const key = cameraVideo.videoWidth + "x" + cameraVideo.videoHeight;
+            if (key !== this.projectionKey) {
+              const cropWidth = Math.min(cameraVideo.videoWidth, cameraVideo.videoHeight * 4 / 3);
+              const cropHeight = cropWidth * 3 / 4;
+              const scaleX = cropWidth / cameraVideo.videoWidth;
+              const scaleY = cropHeight / cameraVideo.videoHeight;
+              this.projection.copy(context.getProjectionMatrix());
+              for (const index of [0, 4, 8, 12]) this.projection.elements[index] *= scaleX;
+              for (const index of [1, 5, 9, 13]) this.projection.elements[index] *= scaleY;
+              this.projectionKey = key;
+            }
           }
         }
       });
@@ -191,7 +246,13 @@
         renderStatus();
       });
       character.addEventListener("model-error", () => fail("Impossible de charger le personnage 3D. Vérifie que le fichier assets/personnage.glb est bien publié sur GitHub Pages."));
-      marker.addEventListener("markerFound", () => { state.found = true; renderStatus(); });
+      marker.addEventListener("markerFound", () => {
+        state.found = true;
+        state.searchingLong = false;
+        clearTimeout(searchTimer);
+        searchTimer = null;
+        renderStatus();
+      });
       marker.addEventListener("markerLost", () => { state.found = false; renderStatus(); });
       document.body.appendChild(scene);
       watchdog = setTimeout(() => { state.slow = true; renderStatus(); }, 45000);

@@ -1,0 +1,139 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>TP MMI - Image Tracking NFT</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+
+  <!-- AR.js NFT -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar-nft.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      font-family: Arial, sans-serif;
+    }
+
+    #status {
+      position: fixed;
+      top: 65px;
+      left: 12px;
+      right: 12px;
+      z-index: 9999;
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #status strong {
+      color: #55d9ff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="status">
+    <strong>TP MMI - Scan NFT</strong>
+    <div id="message">Initialisation...</div>
+  </div>
+
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    loading-screen="enabled: false"
+    renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
+    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false">
+
+    <!-- Image reconnue -->
+    <a-nft
+      id="marqueur"
+      type="nft"
+      url="./assets/scan"
+      smooth="true"
+      smoothCount="10"
+      smoothTolerance="0.01"
+      smoothThreshold="5">
+
+      <!-- Modèle 3D -->
+      <a-entity
+        id="personnage"
+        gltf-model="url(../assets/personnage.glb)"
+        scale="1 1 1"
+        position="0 0 0"
+        rotation="-90 0 0">
+      </a-entity>
+
+    </a-nft>
+
+    <!-- Caméra AR -->
+    <a-entity camera></a-entity>
+
+  </a-scene>
+
+  <script>
+    const message = document.getElementById("message");
+    const marker = document.getElementById("marqueur");
+    const model = document.getElementById("personnage");
+
+    function status(text) {
+      message.textContent = text;
+      console.log("[NFT]", text);
+    }
+
+    // Scène prête
+    document.querySelector("a-scene")
+      .addEventListener("loaded", () => {
+        status("Scène chargée. Initialisation NFT...");
+      });
+
+    // Fichiers NFT chargés
+    window.addEventListener("arjs-nft-loaded", () => {
+      status("NFT prêt. Pointe la caméra vers l'image.");
+    });
+
+    // Marqueur reconnu
+    marker.addEventListener("markerFound", () => {
+      status("Image reconnue ! Affichage du personnage.");
+    });
+
+    // Marqueur perdu
+    marker.addEventListener("markerLost", () => {
+      status("Image perdue. Recadre le visuel.");
+    });
+
+    // Modèle chargé
+    model.addEventListener("model-loaded", () => {
+      console.log("Modèle GLB chargé.");
+    });
+
+    model.addEventListener("model-error", (event) => {
+      status("Erreur de chargement du modèle GLB.");
+      console.error(event.detail);
+    });
+
+    // Erreur JavaScript
+    window.addEventListener("error", (event) => {
+      console.error(event);
+
+      if (event.message !== "Script error.") {
+        status("Erreur : " + event.message);
+      }
+    });
+  </script>
+
+</body>
+</html>
